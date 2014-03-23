@@ -7,7 +7,7 @@ LazyStream is  a lazy (non-blocking) stream reader that collects lines from a st
 Usage
 -----
 
-Suppose you need to run a command system command that blocks for one second:
+Suppose you need to run a system command that blocks for one second:
 
     from subprocess import Popen, PIPE
     command = 'sleep 1 && echo hello'
