@@ -1,49 +1,79 @@
-from subprocess import Popen, PIPE
-from Queue import Queue, Empty
+# -*- coding: utf-8 -*-
+
+"""Reads a stream lazily.
+
+Usage: convert a stream into a lazy stream with ``read()``::
+
+    import lazystream, time
+    stream = lazystream.read(process.stdout)
+
+Then pop lines off whenever you like with ``pop()``::
+
+    line = lazystream.pop(stream)
+    time.sleep(3)
+    line = lazystream.pop(stream)
+
+"""
+
+from queue import Queue, Empty
 from threading import Thread
 
-class LazyStream:
-    """                                                                         
-    A class that reads a stream (like stdout) in a thread,                      
-    so that it does not block main program execution.                           
-                                                                                
+
+def put_lines_into_queue(stream, queue):
+    """Read lines from a stream and put them in a queue.
+
+    Note: this is blocking (for the thread it runs in).
+
+    Args:
+
+        stream
+            The stream to read lines from.
+
+        queue
+            A queue to put the stream's lines in.
+
+    Returns:
+        The queue, populated with lines.
+
     """
+    for line in iter(stream.readline, b''):
+        queue.put(line)
+    stream.close()
+    return queue
 
-    def __init__(self, stream):
-        """                                                                     
-        Given a stream, this starts everything up.                              
-                                                                                
-        """
-        self.stream = stream
-        self.queue = Queue()
-        self.start_thread()
 
-    def start_thread(self):
-        """                                                                     
-        This initializes and starts the thread.                                 
-                                                                                
-        """
-        self.thread = Thread(target=self.put_lines_into_queue)
-        self.thread.daemon = True
-        self.thread.start()
+def pop(queue):
+    """Get any new lines on the queue.
 
-    def put_lines_into_queue(self):
-        """                                                                     
-        This reads all lines from a stream and puts them in a queue.            
-        Note: this is blocking (for the thread it is running in).               
-                                                                                
-        """
-        for line in iter(self.stream.readline, b''):
-            self.queue.put(line)
-        self.stream.close()
+    Args:
 
-    def readline(self):
-        """                                                                     
-        Check if there are any new lines in the queue.                          
-                                                                                
-        """
-        try:
-            return self.queue.get_nowait()
-        except Empty:
-            return None
+        queue
+            A queue to pop lines from.
 
+    Returns:
+        The line, or None.
+
+    """
+    try:
+        return queue.get_nowait()
+    except Empty:
+        return None
+
+
+def read(stream):
+    """Stream lines into a queue.
+
+    Args:
+
+        stream
+            The stream to read.
+
+    Returns:
+        The queue.
+
+    """
+    queue = Queue()
+    thread = Thread(target=put_lines_into_queue, args=(stream, queue))
+    thread.daemon = True
+    thread.start()
+    return queue
